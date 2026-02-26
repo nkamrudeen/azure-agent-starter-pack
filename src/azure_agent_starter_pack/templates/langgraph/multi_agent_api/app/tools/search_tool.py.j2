@@ -1,0 +1,13 @@
+"""Search tool: callable by the LangGraph agent via tool node."""
+
+from langchain_core.tools import tool
+
+
+@tool
+def search_tool(query: str) -> str:
+    """Search a knowledge base and return results.
+
+    Replace this stub with a real implementation, e.g.
+    Azure AI Search, a vector DB, or an external API.
+    """
+    return f"Search results for '{query}': This is a placeholder. Connect to Azure AI Search or your data source."

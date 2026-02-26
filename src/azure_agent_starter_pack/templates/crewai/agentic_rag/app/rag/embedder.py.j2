@@ -1,0 +1,29 @@
+"""Embedder: generate embeddings via Azure OpenAI."""
+
+from azure.identity import DefaultAzureCredential
+from langchain_openai import AzureOpenAIEmbeddings
+
+from app.rag.config import (
+    AZURE_OPENAI_API_VERSION,
+    AZURE_OPENAI_EMBEDDING_DEPLOYMENT,
+    AZURE_OPENAI_ENDPOINT,
+)
+
+
+def get_embeddings() -> AzureOpenAIEmbeddings:
+    """Return an Azure OpenAI embeddings client using Managed Identity."""
+    credential = DefaultAzureCredential()
+    token = credential.get_token("https://cognitiveservices.azure.com/.default")
+
+    return AzureOpenAIEmbeddings(
+        azure_endpoint=AZURE_OPENAI_ENDPOINT,
+        azure_deployment=AZURE_OPENAI_EMBEDDING_DEPLOYMENT,
+        api_version=AZURE_OPENAI_API_VERSION,
+        api_key=token.token,
+    )
+
+
+def embed_texts(texts: list[str]) -> list[list[float]]:
+    """Generate embeddings for a list of texts."""
+    embeddings = get_embeddings()
+    return embeddings.embed_documents(texts)

@@ -1,0 +1,16 @@
+"""Research sub-agent: searches for information using tools."""
+
+from google.adk.agents import Agent
+
+from app.tools.search_tool import search_tool
+
+research_agent = Agent(
+    name="research_agent",
+    model="gemini-2.0-flash",
+    description="Researches topics by searching knowledge sources.",
+    instruction=(
+        "You are a research specialist. Use the search tool to find "
+        "relevant information and return structured results."
+    ),
+    tools=[search_tool],
+)

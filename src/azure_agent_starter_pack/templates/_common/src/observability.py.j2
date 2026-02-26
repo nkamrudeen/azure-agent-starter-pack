@@ -1,0 +1,21 @@
+"""Observability hooks: OpenTelemetry + Azure Monitor (FR-017)."""
+
+import logging
+
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+logger = logging.getLogger("{{ project_name | default('agent') }}")
+
+
+def setup_telemetry(service_name: str = "{{ project_name | default('agent') }}") -> None:
+    """Initialize OpenTelemetry tracing with OTLP exporter."""
+    resource = Resource.create({"service.name": service_name})
+    provider = TracerProvider(resource=resource)
+    exporter = OTLPSpanExporter()
+    provider.add_span_processor(BatchSpanProcessor(exporter))
+    trace.set_tracer_provider(provider)
+    logger.info("Telemetry initialized for %s", service_name)

@@ -1,0 +1,25 @@
+"""Unit tests for CrewAI agent definitions."""
+
+from app.agents.crew import build_crew
+from app.tools.search_tool import SearchTool
+
+
+def test_build_crew_returns_crew():
+    crew = build_crew()
+    assert crew is not None
+    assert len(crew.agents) == 2
+    assert len(crew.tasks) == 2
+
+
+def test_search_tool_returns_string():
+    tool = SearchTool()
+    result = tool._run("test query")
+    assert isinstance(result, str)
+    assert "test query" in result
+
+
+def test_agent_roles():
+    crew = build_crew()
+    roles = {a.role for a in crew.agents}
+    assert "Researcher" in roles
+    assert "Summariser" in roles

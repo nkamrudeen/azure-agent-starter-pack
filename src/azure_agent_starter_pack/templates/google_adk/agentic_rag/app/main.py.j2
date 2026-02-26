@@ -1,0 +1,72 @@
+"""Entrypoint: FastAPI app serving the Google ADK RAG agent."""
+
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from dotenv import load_dotenv
+from fastapi import FastAPI
+
+load_dotenv()
+
+app = FastAPI(title="{{ project_name }} (Agentic RAG)", version="0.1.0")
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+@app.post("/search")
+async def search(query: dict):
+    """Run a retrieval query against Azure AI Search (no agent reasoning)."""
+    from app.rag.retriever import retrieve
+
+    results = retrieve(query.get("message", ""))
+    return {"results": results}
+
+
+@app.post("/run")
+async def run_agent(query: dict):
+    """Execute the RAG agent: retrieve context from Azure AI Search, then reason."""
+    from google.adk.agents import Agent
+    from google.adk.runners import Runner
+    from google.adk.sessions import InMemorySessionService
+    from google.genai.types import Content, Part
+
+    from app.tools.retrieval_tool import retrieval_tool
+
+    rag_agent = Agent(
+        name="rag_agent",
+        model="gemini-2.0-flash",
+        description="RAG agent grounded in Azure AI Search.",
+        instruction=(
+            "You are a knowledge assistant for {{ project_name }}. "
+            "Use the retrieval_tool to search Azure AI Search for relevant context, "
+            "then synthesise a clear, cited answer. Always cite the source passages."
+        ),
+        tools=[retrieval_tool],
+    )
+
+    session_service = InMemorySessionService()
+    runner = Runner(agent=rag_agent, app_name="{{ project_name }}", session_service=session_service)
+    session = await session_service.create_session(app_name="{{ project_name }}", user_id="user")
+
+    user_message = Content(parts=[Part(text=query.get("message", ""))])
+
+    response_parts = []
+    async for event in runner.run_async(user_id="user", session_id=session.id, new_message=user_message):
+        if event.is_final_response() and event.content and event.content.parts:
+            for part in event.content.parts:
+                if part.text:
+                    response_parts.append(part.text)
+
+    return {"response": "\n".join(response_parts)}
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=int(os.getenv("PORT", "8000")), reload=True)

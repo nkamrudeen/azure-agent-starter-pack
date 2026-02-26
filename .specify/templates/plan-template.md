@@ -31,7 +31,41 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+Verify alignment with `.specify/memory/constitution.md`:
+
+**Governing Principles**
+
+- [ ] **Azure-Native First**: Managed Identity, RBAC, Key Vault, Entra ID, Well-Architected
+- [ ] **Production-Ready Defaults**: CI/CD, security scanning, observability, dev/stage/prod
+- [ ] **Golden Path**: Structured repo; separation of agent logic, orchestration, infra, pipelines
+- [ ] **Secure-by-Default**: No hardcoded secrets; SAST, dependency scan, ZAP/DAST; env isolation
+- [ ] **Extensible Plugin Architecture**: Pluggable frameworks, new runtimes, plugin ecosystem
+- [ ] **Versioned Template System**: Deterministic output, backward-compatible upgrades
+- [ ] **Enterprise Readiness**: Compliance-friendly patterns, env separation, documentation
+
+**Architecture Standards**
+
+- [ ] **Separation of concerns**: Agent logic, orchestration, infra, pipelines clearly separated
+- [ ] **IaC required**: Bicep/Helm/YAML; no manual-only deployment as primary path
+- [ ] **No hardcoded secrets**: Key Vault / Managed Identity / env vars only
+- [ ] **Dev/Stage/Prod**: Distinct configs and promotion path
+- [ ] **Azure-optimized output**: Azure-native services in generated templates
+
+**Security Mandates**
+
+- [ ] **Managed Identity** for Azure resource access
+- [ ] **SAST and dependency scan** in pipeline
+- [ ] **ZAP baseline or DAST example** for web/API scaffolds
+- [ ] **Environment variable isolation** for config/secrets
+- [ ] **mTLS** documented or exemplified for multi-service deployments
+
+**Developer Experience**
+
+- [ ] **One-command scaffolding**; clear CLI UX; **doctor** command; deterministic output; backward-compatible upgrades
+
+**Non-Goals** (confirm out of scope)
+
+- [ ] Not a full provisioning engine; not low-code; not framework-specific lock-in
 
 ## Project Structure
 

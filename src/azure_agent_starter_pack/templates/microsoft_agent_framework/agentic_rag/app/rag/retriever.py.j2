@@ -1,0 +1,49 @@
+"""Retriever: hybrid search (keyword + vector) against Azure AI Search."""
+
+from azure.identity import DefaultAzureCredential
+from azure.search.documents import SearchClient
+from azure.search.documents.models import VectorizedQuery
+
+from app.rag.config import (
+    AZURE_AI_SEARCH_ENDPOINT,
+    AZURE_AI_SEARCH_INDEX,
+    TOP_K,
+)
+from app.rag.embedder import embed_texts
+
+
+def retrieve(query: str, top_k: int | None = None) -> list[dict]:
+    """Run hybrid search: combines keyword + vector similarity.
+
+    Returns a list of dicts with 'content', 'metadata', and 'score'.
+    """
+    k = top_k or TOP_K
+    credential = DefaultAzureCredential()
+    client = SearchClient(
+        endpoint=AZURE_AI_SEARCH_ENDPOINT,
+        index_name=AZURE_AI_SEARCH_INDEX,
+        credential=credential,
+    )
+
+    query_vector = embed_texts([query])[0]
+    vector_query = VectorizedQuery(
+        vector=query_vector,
+        k_nearest_neighbors=k,
+        fields="content_vector",
+    )
+
+    results = client.search(
+        search_text=query,
+        vector_queries=[vector_query],
+        top=k,
+        select=["content", "metadata"],
+    )
+
+    hits = []
+    for result in results:
+        hits.append({
+            "content": result["content"],
+            "metadata": result.get("metadata", "{}"),
+            "score": result["@search.score"],
+        })
+    return hits

@@ -1,0 +1,54 @@
+"""Entrypoint: FastAPI app serving the Google ADK agent."""
+
+import os
+import sys
+from pathlib import Path
+
+# Ensure project root is on sys.path so `app.*` imports work regardless of how this file is invoked.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from dotenv import load_dotenv
+from fastapi import FastAPI
+
+from app.agents.root_agent import root_agent
+
+load_dotenv()
+
+app = FastAPI(title="{{ project_name }}", version="0.1.0")
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+@app.post("/run")
+async def run_agent(query: dict):
+    """Execute the root agent with the given query."""
+    from google.adk.runners import Runner
+    from google.adk.sessions import InMemorySessionService
+
+    session_service = InMemorySessionService()
+    runner = Runner(agent=root_agent, app_name="{{ project_name }}", session_service=session_service)
+
+    session = await session_service.create_session(app_name="{{ project_name }}", user_id="user")
+    from google.genai.types import Content, Part
+
+    user_message = Content(parts=[Part(text=query.get("message", ""))])
+
+    response_parts = []
+    async for event in runner.run_async(
+        user_id="user", session_id=session.id, new_message=user_message
+    ):
+        if event.is_final_response() and event.content and event.content.parts:
+            for part in event.content.parts:
+                if part.text:
+                    response_parts.append(part.text)
+
+    return {"response": "\n".join(response_parts)}
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=int(os.getenv("PORT", "8000")), reload=True)

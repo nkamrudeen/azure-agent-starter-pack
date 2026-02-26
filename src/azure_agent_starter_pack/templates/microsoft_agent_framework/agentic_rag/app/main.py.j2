@@ -1,0 +1,73 @@
+"""Entrypoint: FastAPI app serving the Microsoft Agent Framework RAG agent."""
+
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from dotenv import load_dotenv
+from fastapi import FastAPI
+
+load_dotenv()
+
+app = FastAPI(title="{{ project_name }} (Agentic RAG)", version="0.1.0")
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+@app.post("/search")
+async def search(query: dict):
+    """Run a retrieval query against Azure AI Search (no agent reasoning)."""
+    from app.rag.retriever import retrieve
+
+    results = retrieve(query.get("message", ""))
+    return {"results": results}
+
+
+@app.post("/run")
+async def run_agent(query: dict):
+    """Execute the RAG agent: retrieve context from Azure AI Search, then reason."""
+    from app.rag.retriever import retrieve
+
+    context_docs = retrieve(query.get("message", ""))
+    context_text = "\n\n".join(doc["content"] for doc in context_docs)
+
+    from azure.ai.projects import AIProjectClient
+    from azure.ai.projects.models import AgentThread, MessageRole
+    from azure.identity import DefaultAzureCredential
+
+    client = AIProjectClient.from_connection_string(
+        credential=DefaultAzureCredential(),
+        conn_str=os.getenv("AZURE_AI_PROJECT_CONNECTION_STRING", ""),
+    )
+    agent = client.agents.create_agent(
+        model=os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o"),
+        name="rag_agent",
+        instructions=(
+            "You are a knowledge assistant for {{ project_name }}. "
+            "Answer based on the provided context. Cite sources.\n\n"
+            f"Context:\n{context_text}"
+        ),
+    )
+    thread: AgentThread = client.agents.create_thread()
+    client.agents.create_message(thread_id=thread.id, role=MessageRole.USER, content=query.get("message", ""))
+    run = client.agents.create_and_process_run(thread_id=thread.id, agent_id=agent.id)
+
+    if run.status == "failed":
+        return {"response": f"Agent failed: {run.last_error}"}
+
+    messages = client.agents.list_messages(thread_id=thread.id)
+    for msg in reversed(messages.data):
+        if msg.role == MessageRole.AGENT:
+            return {"response": msg.content[0].text.value}
+    return {"response": "No response."}
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=int(os.getenv("PORT", "8000")), reload=True)

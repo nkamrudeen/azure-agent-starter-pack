@@ -1,0 +1,27 @@
+# Infrastructure ({{ iac }})
+
+IaC templates for deploying to **{{ runtime_display | default(runtime) }}**.
+
+## Environments
+
+- `dev`
+- `stage`
+- `prod`
+
+Each environment uses separate config/parameter files. No shared production credentials with non-production.
+
+## Deploy
+
+Adjust parameters in the relevant env file, then apply:
+
+{% if iac == "bicep" %}
+```bash
+az deployment group create --resource-group <rg> --template-file main.bicep --parameters @params.dev.json
+```
+{% elif iac == "terraform" %}
+```bash
+terraform init
+terraform plan -var-file=dev.tfvars
+terraform apply -var-file=dev.tfvars
+```
+{% endif %}

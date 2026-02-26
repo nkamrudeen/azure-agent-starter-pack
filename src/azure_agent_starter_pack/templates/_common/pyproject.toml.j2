@@ -1,0 +1,12 @@
+[project]
+name = "{{ project_name | default('azure-ai-agent') }}"
+version = "0.1.0"
+description = "{{ project_type_display | default('Azure AI Agent') }} project ({{ framework_display | default(framework) }})"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

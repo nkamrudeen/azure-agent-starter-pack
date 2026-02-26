@@ -1,0 +1,16 @@
+"""Search tool: callable by CrewAI agents."""
+
+from crewai.tools import BaseTool
+
+
+class SearchTool(BaseTool):
+    name: str = "search_tool"
+    description: str = "Search a knowledge base for information on a given query."
+
+    def _run(self, query: str) -> str:
+        """Execute the search.
+
+        Replace this stub with a real implementation, e.g.
+        Azure AI Search, a vector DB, or an external API.
+        """
+        return f"Search results for '{query}': This is a placeholder. Connect to Azure AI Search or your data source."

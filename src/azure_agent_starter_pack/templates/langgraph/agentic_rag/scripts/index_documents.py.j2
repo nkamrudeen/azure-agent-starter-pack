@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""Index sample documents into Azure AI Search.
+
+Usage:
+    python scripts/index_documents.py                    # Index the sample document
+    python scripts/index_documents.py path/to/file.pdf   # Index a PDF
+    python scripts/index_documents.py path/to/file.txt   # Index a text file
+
+Prerequisites:
+    - Azure AI Search endpoint configured in .env
+    - Azure OpenAI endpoint configured in .env (for embeddings)
+    - `az login` completed (Managed Identity / CLI credential)
+"""
+
+import sys
+from pathlib import Path
+
+# Ensure project root is on sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from app.rag.chunker import chunk_pdf, chunk_text
+from app.rag.indexer import ensure_index, index_chunks
+
+
+def main():
+    ensure_index()
+
+    if len(sys.argv) > 1:
+        file_path = sys.argv[1]
+        p = Path(file_path)
+        if not p.exists():
+            print(f"Error: File not found: {file_path}")
+            sys.exit(1)
+        if p.suffix.lower() == ".pdf":
+            chunks = chunk_pdf(str(p))
+        else:
+            text = p.read_text(encoding="utf-8")
+            chunks = chunk_text(text, metadata={"source": str(p)})
+    else:
+        sample = Path(__file__).parent.parent / "data" / "sample.txt"
+        if not sample.exists():
+            print(f"Error: Sample document not found at {sample}")
+            sys.exit(1)
+        text = sample.read_text(encoding="utf-8")
+        chunks = chunk_text(text, metadata={"source": "sample.txt"})
+
+    print(f"Chunked into {len(chunks)} segments.")
+    indexed = index_chunks(chunks)
+    print(f"Done. {indexed} documents indexed.")
+
+
+if __name__ == "__main__":
+    main()

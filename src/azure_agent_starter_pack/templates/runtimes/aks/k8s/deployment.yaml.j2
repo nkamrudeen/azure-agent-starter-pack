@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ project_name | replace("_", "-") }}
+  namespace: {{ project_name | replace("_", "-") }}
+  labels:
+    app: {{ project_name | replace("_", "-") }}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: {{ project_name | replace("_", "-") }}
+  template:
+    metadata:
+      labels:
+        app: {{ project_name | replace("_", "-") }}
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: {{ project_name | replace("_", "-") }}-sa
+      containers:
+        - name: {{ project_name | replace("_", "-") }}
+          image: <ACR_LOGIN_SERVER>/{{ project_name | replace("_", "-") }}:latest
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: PORT
+              value: "8000"
+            - name: ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ project_name | replace("_", "-") }}-config
+                  key: ENVIRONMENT
+            - name: KEY_VAULT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ project_name | replace("_", "-") }}-config
+                  key: KEY_VAULT_URL
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10

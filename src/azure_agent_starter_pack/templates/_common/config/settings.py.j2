@@ -1,0 +1,10 @@
+"""Environment-based configuration (no hardcoded secrets)."""
+
+import os
+
+AZURE_OPENAI_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT", "")
+AZURE_OPENAI_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT", "")
+AZURE_AI_SEARCH_ENDPOINT = os.environ.get("AZURE_AI_SEARCH_ENDPOINT", "")
+KEY_VAULT_URL = os.environ.get("KEY_VAULT_URL", "")
+
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "dev")

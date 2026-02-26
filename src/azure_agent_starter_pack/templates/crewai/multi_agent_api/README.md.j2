@@ -1,0 +1,95 @@
+# {{ project_name | default("Azure AI Agent Project") }}
+
+Scaffolded by [azure-agent-starter-pack](https://github.com/your-org/azure-agent-starter-pack).
+
+## Configuration
+
+| Setting | Value |
+|---------|-------|
+| Framework | {{ framework }} |
+| Project type | {{ project_type }} |
+| Pipeline | {{ pipeline }} |
+| Runtime | {{ runtime }} |
+| IaC | {{ iac }} |
+
+## Prerequisites
+
+- Python 3.12+
+- [uv](https://github.com/astral-sh/uv)
+- Azure CLI (`az`) with an active subscription
+- Docker (for container builds)
+
+## Install dependencies
+
+```bash
+uv venv
+source .venv/bin/activate
+uv pip install -r requirements.txt
+```
+{% if project_type == "agentic_rag" %}
+## RAG dependencies
+
+```bash
+uv pip install -r requirements-rag.txt
+```
+{% endif %}
+
+## Run tests
+
+```bash
+uv run pytest
+```
+
+## Run the application
+
+```bash
+cp .env.example .env   # Fill in required values
+python run.py           # or: uvicorn app.main:app --reload
+```
+{% if project_type == "agentic_rag" %}
+## RAG Pipeline (Azure AI Search)
+
+This project includes a full RAG pipeline in `app/rag/`.
+
+**Index the sample document (or your own files):**
+
+```bash
+az login
+python scripts/index_documents.py                   # Index data/sample.txt
+python scripts/index_documents.py path/to/doc.pdf   # Index a PDF
+```
+
+**API endpoints:**
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /search` | Direct retrieval from Azure AI Search (no agent reasoning) |
+| `POST /run` | Agent-powered RAG: retrieves context then reasons over it |
+
+```bash
+curl -X POST http://localhost:8000/search -H 'Content-Type: application/json' \
+  -d '{"message": "What is vector search?"}'
+
+curl -X POST http://localhost:8000/run -H 'Content-Type: application/json' \
+  -d '{"message": "How does hybrid search work?"}'
+```
+{% endif %}
+
+## Deploy to Azure
+
+1. Review and customise `infra/` ({{ iac }} templates for {{ runtime }}).
+2. Authenticate: `az login`
+3. Deploy infrastructure: see `infra/README.md` or run the IaC apply command.
+4. Push your container image to ACR (see CI/CD pipeline).
+5. Target: **deploy within 30 minutes** following these steps.
+
+## CI/CD
+
+Pipeline definition: see `.github/workflows/` or `azure-pipelines/` depending on your pipeline choice ({{ pipeline }}).
+
+## Security
+
+- **Managed Identity** for Azure resource access (no static secrets).
+- **Key Vault** integration example included.
+- **SAST and dependency scan** in pipeline.
+- **OpenTelemetry** observability hooks included.

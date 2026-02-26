@@ -1,0 +1,188 @@
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.0"
+    }
+  }
+
+  backend "azurerm" {
+    # Configure in backend.hcl or via -backend-config flags
+  }
+}
+
+provider "azurerm" {
+  features {}
+}
+
+# ---------- Resource Group ----------
+
+resource "azurerm_resource_group" "main" {
+  name     = var.resource_group_name
+  location = var.location
+  tags     = var.tags
+}
+
+# ---------- Azure Container Registry ----------
+
+resource "azurerm_container_registry" "acr" {
+  name                = var.acr_name
+  resource_group_name = azurerm_resource_group.main.name
+  location            = azurerm_resource_group.main.location
+  sku                 = "Standard"
+  admin_enabled       = false
+  tags                = var.tags
+}
+
+# ---------- Key Vault ----------
+
+resource "azurerm_key_vault" "kv" {
+  name                       = var.key_vault_name
+  location                   = azurerm_resource_group.main.location
+  resource_group_name        = azurerm_resource_group.main.name
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  sku_name                   = "standard"
+  soft_delete_retention_days = 7
+  purge_protection_enabled   = true
+  tags                       = var.tags
+
+  enable_rbac_authorization = true
+}
+
+data "azurerm_client_config" "current" {}
+
+# ---------- Log Analytics ----------
+
+resource "azurerm_log_analytics_workspace" "logs" {
+  name                = "{{ project_name }}-logs"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+  tags                = var.tags
+}
+
+{% if runtime == "aks" %}
+# ---------- AKS Cluster ----------
+
+resource "azurerm_kubernetes_cluster" "aks" {
+  name                = "{{ project_name }}-aks"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  dns_prefix          = "{{ project_name }}"
+  tags                = var.tags
+
+  default_node_pool {
+    name       = "default"
+    node_count = var.aks_node_count
+    vm_size    = var.aks_vm_size
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  oms_agent {
+    log_analytics_workspace_id = azurerm_log_analytics_workspace.logs.id
+  }
+}
+
+resource "azurerm_role_assignment" "aks_acr_pull" {
+  principal_id                     = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
+  role_definition_name             = "AcrPull"
+  scope                            = azurerm_container_registry.acr.id
+  skip_service_principal_aad_check = true
+}
+{% endif %}
+
+{% if runtime == "container_apps" %}
+# ---------- Container Apps Environment ----------
+
+resource "azurerm_container_app_environment" "env" {
+  name                       = "{{ project_name }}-cae"
+  location                   = azurerm_resource_group.main.location
+  resource_group_name        = azurerm_resource_group.main.name
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.logs.id
+  tags                       = var.tags
+}
+
+resource "azurerm_container_app" "app" {
+  name                         = "{{ project_name }}"
+  container_app_environment_id = azurerm_container_app_environment.env.id
+  resource_group_name          = azurerm_resource_group.main.name
+  revision_mode                = "Single"
+  tags                         = var.tags
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  template {
+    container {
+      name   = "{{ project_name }}"
+      image  = "${azurerm_container_registry.acr.login_server}/{{ project_name }}:latest"
+      cpu    = 0.5
+      memory = "1Gi"
+
+      env {
+        name  = "KEY_VAULT_URL"
+        value = azurerm_key_vault.kv.vault_uri
+      }
+      env {
+        name  = "ENVIRONMENT"
+        value = var.environment
+      }
+    }
+  }
+
+  ingress {
+    external_enabled = true
+    target_port      = 8000
+    transport        = "http"
+    traffic_weight {
+      percentage      = 100
+      latest_revision = true
+    }
+  }
+}
+{% endif %}
+
+{% if runtime == "app_service" %}
+# ---------- App Service ----------
+
+resource "azurerm_service_plan" "plan" {
+  name                = "{{ project_name }}-plan"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  os_type             = "Linux"
+  sku_name            = "B1"
+  tags                = var.tags
+}
+
+resource "azurerm_linux_web_app" "app" {
+  name                = "{{ project_name }}"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  service_plan_id     = azurerm_service_plan.plan.id
+  tags                = var.tags
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  site_config {
+    application_stack {
+      docker_image_name   = "{{ project_name }}:latest"
+      docker_registry_url = "https://${azurerm_container_registry.acr.login_server}"
+    }
+  }
+
+  app_settings = {
+    KEY_VAULT_URL                    = azurerm_key_vault.kv.vault_uri
+    ENVIRONMENT                      = var.environment
+    WEBSITES_ENABLE_APP_SERVICE_STORAGE = "false"
+  }
+}
+{% endif %}

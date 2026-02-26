@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv sync
+
+      - name: Run tests
+        run: uv run pytest
+
+  sast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run SAST (Bandit)
+        run: |
+          pip install bandit
+          bandit -r src/ -ll -ii
+
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run dependency scan (pip-audit)
+        run: |
+          pip install pip-audit
+          pip-audit
+
+{% if project_type == "multi_agent_api" %}
+  zap-baseline:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: "http://localhost:8000"
+          allow_issue_writing: false
+{% endif %}
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [build-and-test, sast, dependency-scan]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t {{ project_name | default("agent") }}:${{ "{{" }} github.sha {{ "}}" }} .
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        environment: [dev, stage, prod]
+    environment: ${{ "{{" }} matrix.environment {{ "}}" }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to {{ runtime }}
+        run: echo "Deploy to ${{ "{{" }} matrix.environment {{ "}}" }} ({{ runtime }})"

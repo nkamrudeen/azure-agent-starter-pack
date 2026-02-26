@@ -1,0 +1,11 @@
+resource_group_name = "{{ project_name }}-dev-rg"
+location            = "eastus2"
+environment         = "dev"
+acr_name            = "{{ project_name | replace('-', '') | replace('_', '') }}devacr"
+key_vault_name      = "{{ project_name | replace('_', '-') }}-dev-kv"
+
+tags = {
+  project     = "{{ project_name }}"
+  environment = "dev"
+  managed_by  = "terraform"
+}

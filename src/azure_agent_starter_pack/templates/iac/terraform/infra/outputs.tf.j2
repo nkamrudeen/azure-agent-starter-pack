@@ -1,0 +1,34 @@
+output "resource_group_name" {
+  value = azurerm_resource_group.main.name
+}
+
+output "acr_login_server" {
+  value = azurerm_container_registry.acr.login_server
+}
+
+output "key_vault_uri" {
+  value = azurerm_key_vault.kv.vault_uri
+}
+
+{% if runtime == "aks" %}
+output "aks_cluster_name" {
+  value = azurerm_kubernetes_cluster.aks.name
+}
+
+output "aks_kube_config" {
+  value     = azurerm_kubernetes_cluster.aks.kube_config_raw
+  sensitive = true
+}
+{% endif %}
+
+{% if runtime == "container_apps" %}
+output "container_app_url" {
+  value = "https://${azurerm_container_app.app.latest_revision_fqdn}"
+}
+{% endif %}
+
+{% if runtime == "app_service" %}
+output "app_service_url" {
+  value = "https://${azurerm_linux_web_app.app.default_hostname}"
+}
+{% endif %}

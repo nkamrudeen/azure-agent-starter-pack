@@ -1,0 +1,22 @@
+"""Unit tests for Microsoft agent definitions."""
+
+from unittest.mock import MagicMock
+
+from app.agents.research_agent import create_research_agent
+from app.agents.summariser_agent import create_summariser_agent
+
+
+def test_create_research_agent():
+    mock_client = MagicMock()
+    mock_client.agents.create_agent.return_value = MagicMock(name="research_agent")
+    agent = create_research_agent(mock_client)
+    mock_client.agents.create_agent.assert_called_once()
+    assert agent is not None
+
+
+def test_create_summariser_agent():
+    mock_client = MagicMock()
+    mock_client.agents.create_agent.return_value = MagicMock(name="summariser_agent")
+    agent = create_summariser_agent(mock_client)
+    mock_client.agents.create_agent.assert_called_once()
+    assert agent is not None

@@ -1,0 +1,68 @@
+"""Entrypoint: FastAPI app serving the CrewAI RAG agent."""
+
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from dotenv import load_dotenv
+from fastapi import FastAPI
+
+load_dotenv()
+
+app = FastAPI(title="{{ project_name }} (Agentic RAG)", version="0.1.0")
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+@app.post("/search")
+async def search(query: dict):
+    """Run a retrieval query against Azure AI Search (no agent reasoning)."""
+    from app.rag.retriever import retrieve
+
+    results = retrieve(query.get("message", ""))
+    return {"results": results}
+
+
+@app.post("/run")
+async def run_agent(query: dict):
+    """Execute the RAG agent: retrieve context from Azure AI Search, then reason."""
+    from crewai import Agent, Crew, Process, Task
+    from langchain_openai import AzureChatOpenAI
+
+    from app.rag.retriever import retrieve
+
+    user_query = query.get("message", "")
+    context_docs = retrieve(user_query)
+    context_text = "\n\n".join(doc["content"] for doc in context_docs)
+
+    llm = AzureChatOpenAI(
+        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT", ""),
+        azure_deployment=os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o"),
+        api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview"),
+    )
+    rag_agent = Agent(
+        role="Knowledge Assistant",
+        goal="Answer the user question based on retrieved context",
+        backstory="You are a knowledge assistant grounded in Azure AI Search documents.",
+        llm=llm,
+        verbose=False,
+    )
+    task = Task(
+        description=f"Context:\n{context_text}\n\nQuestion: {user_query}\n\nAnswer with citations.",
+        expected_output="A clear answer citing the source passages.",
+        agent=rag_agent,
+    )
+    crew = Crew(agents=[rag_agent], tasks=[task], process=Process.sequential, verbose=False)
+    result = crew.kickoff()
+    return {"response": str(result)}
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=int(os.getenv("PORT", "8000")), reload=True)

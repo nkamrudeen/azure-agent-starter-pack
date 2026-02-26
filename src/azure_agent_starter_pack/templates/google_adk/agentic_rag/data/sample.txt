@@ -1,0 +1,50 @@
+Azure AI Search Overview
+
+Azure AI Search (formerly Azure Cognitive Search) is a cloud search service that provides
+developers with APIs and tools for building rich search experiences over private,
+heterogeneous content in web, mobile, and enterprise applications.
+
+Key Features:
+- Full-text search with linguistic analysis in 56 languages
+- Vector search for semantic similarity using embeddings
+- Hybrid search combining keyword and vector approaches
+- AI enrichment pipelines for extracting content from images, blobs, and other unstructured data
+- Integrated vectorization with Azure OpenAI embeddings
+- Semantic ranking for improved relevance
+- Geo-search capabilities
+- Faceted navigation and filters
+
+Architecture:
+Azure AI Search operates on indexes that store searchable content. Documents are pushed
+into indexes through indexers (pull model) or via the REST API / SDK (push model).
+Each document is a collection of fields. Fields can be searchable, filterable,
+sortable, and facetable.
+
+Vector Search:
+Starting with vector search, Azure AI Search supports storing and querying vector
+embeddings alongside traditional text fields. This enables hybrid search scenarios
+where both keyword matching and semantic similarity are used to rank results.
+Vector fields use HNSW (Hierarchical Navigable Small World) algorithm for
+approximate nearest neighbor search.
+
+Integration with Azure OpenAI:
+Azure AI Search integrates seamlessly with Azure OpenAI Service for:
+1. Generating embeddings using models like text-embedding-3-small
+2. Building RAG (Retrieval-Augmented Generation) applications
+3. Using the "On Your Data" feature for grounded chat experiences
+4. Skill-based AI enrichment during indexing
+
+Security:
+- Azure RBAC for control plane operations
+- API keys or Azure AD tokens for data plane operations
+- Private endpoints for network isolation
+- Customer-managed encryption keys
+- Managed Identity for connecting to data sources
+
+Best Practices for RAG:
+1. Choose appropriate chunk sizes (typically 500-1500 tokens)
+2. Use overlapping chunks to preserve context across boundaries
+3. Include metadata with chunks for filtering and attribution
+4. Use hybrid search (keyword + vector) for best recall
+5. Implement semantic ranking for improved precision
+6. Cache frequently used embeddings to reduce latency and cost

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ project_name | replace("_", "-") }}-config
+  namespace: {{ project_name | replace("_", "-") }}
+data:
+  ENVIRONMENT: "dev"
+  KEY_VAULT_URL: ""
+  AZURE_OPENAI_ENDPOINT: ""
+  AZURE_OPENAI_DEPLOYMENT: "gpt-4o"
+  AZURE_OPENAI_API_VERSION: "2024-12-01-preview"

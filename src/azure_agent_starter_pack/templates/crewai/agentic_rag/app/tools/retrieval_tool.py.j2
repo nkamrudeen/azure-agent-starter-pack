@@ -1,0 +1,25 @@
+"""Retrieval tool: search Azure AI Search and return grounded context."""
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from app.rag.retriever import retrieve
+
+
+def retrieval_tool(query: str) -> str:
+    """Search Azure AI Search for documents relevant to the query.
+
+    Returns formatted context from the top matching documents.
+    This is the core tool used by the RAG agent to ground its answers.
+    """
+    results = retrieve(query)
+    if not results:
+        return "No relevant documents found."
+
+    context_parts = []
+    for i, hit in enumerate(results, 1):
+        context_parts.append(f"[{i}] (score: {hit['score']:.3f})\n{hit['content']}")
+
+    return "\n\n---\n\n".join(context_parts)

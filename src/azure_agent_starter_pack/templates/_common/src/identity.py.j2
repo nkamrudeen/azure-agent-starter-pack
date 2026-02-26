@@ -1,0 +1,16 @@
+"""Azure Managed Identity and Key Vault integration (FR-015, FR-016)."""
+
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
+
+
+def get_credential():
+    """Return a DefaultAzureCredential (Managed Identity in Azure, CLI locally)."""
+    return DefaultAzureCredential()
+
+
+def get_secret(vault_url: str, secret_name: str) -> str:
+    """Retrieve a secret from Azure Key Vault using Managed Identity."""
+    credential = get_credential()
+    client = SecretClient(vault_url=vault_url, credential=credential)
+    return client.get_secret(secret_name).value

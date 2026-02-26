@@ -1,0 +1,21 @@
+"""Unit tests for agent definitions."""
+
+from app.agents.root_agent import root_agent
+from app.agents.research_agent import research_agent
+from app.agents.summariser_agent import summariser_agent
+
+
+def test_root_agent_has_sub_agents():
+    assert len(root_agent.sub_agents) == 2
+
+
+def test_research_agent_has_tools():
+    assert len(research_agent.tools) >= 1
+
+
+def test_summariser_agent_name():
+    assert summariser_agent.name == "summariser_agent"
+
+
+def test_root_agent_name():
+    assert root_agent.name == "root_agent"

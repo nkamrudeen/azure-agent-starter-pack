@@ -1,0 +1,19 @@
+"""Root agent: orchestrates sub-agents using Google ADK."""
+
+from google.adk.agents import Agent
+
+from app.agents.research_agent import research_agent
+from app.agents.summariser_agent import summariser_agent
+
+root_agent = Agent(
+    name="root_agent",
+    model="gemini-2.0-flash",
+    description="Root orchestrator that delegates to specialist sub-agents.",
+    instruction=(
+        "You are the orchestrator for {{ project_name }}. "
+        "Delegate research questions to research_agent and "
+        "summarisation requests to summariser_agent. "
+        "Always provide a concise final answer to the user."
+    ),
+    sub_agents=[research_agent, summariser_agent],
+)

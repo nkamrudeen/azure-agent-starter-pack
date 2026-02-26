@@ -1,0 +1,55 @@
+"""Entrypoint: FastAPI app serving Microsoft AI Agents."""
+
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+load_dotenv()
+
+app = FastAPI(title="{{ project_name }}", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", os.getenv("FRONTEND_URL", "")],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Serve React build in production
+frontend_build = Path(__file__).parent.parent / "frontend" / "dist"
+if frontend_build.is_dir():
+    app.mount("/", StaticFiles(directory=str(frontend_build), html=True), name="frontend")
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+@app.post("/run")
+async def run_agent(query: dict):
+    """Execute the orchestrator agent with the given query."""
+    from app.agents.orchestrator import run_orchestrator
+
+    result = await run_orchestrator(query.get("message", ""))
+    return {"response": result}
+
+
+# Serve React build in production (must be after API routes)
+frontend_build = Path(__file__).parent.parent / "frontend" / "dist"
+if frontend_build.is_dir():
+    app.mount("/", StaticFiles(directory=str(frontend_build), html=True), name="frontend")
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=int(os.getenv("PORT", "8000")), reload=True)
