@@ -1,0 +1,104 @@
+trigger:
+  - main
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildAndTest
+        steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '3.12'
+          - script: |
+              pip install uv
+              uv sync
+            displayName: 'Install dependencies'
+          - script: uv run pytest
+            displayName: 'Run tests'
+
+  - stage: Security
+    jobs:
+      - job: SAST
+        steps:
+          - script: |
+              pip install bandit
+              bandit -r src/ -ll -ii
+            displayName: 'Run SAST (Bandit)'
+      - job: DependencyScan
+        steps:
+          - script: |
+              pip install pip-audit
+              pip-audit
+            displayName: 'Run dependency scan (pip-audit)'
+      {% if project_type == "multi_agent_api" %}
+      - job: ZAP
+        steps:
+          - script: echo "ZAP Baseline Scan would run here"
+            displayName: 'ZAP Baseline Scan'
+      {% endif %}
+
+  - stage: Packaging
+    dependsOn: [Build, Security]
+    jobs:
+      - job: DockerBuild
+        steps:
+          - script: docker build -t {{ project_name | default("agent") }}:$(Build.BuildId) .
+            displayName: 'Build Docker image'
+
+  - stage: Deploy
+    dependsOn: Packaging
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: DeployDev
+        environment: dev
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                {% if runtime == "aks" %}
+                - task: AzureCLI@2
+                  displayName: 'Set AKS Context'
+                  inputs:
+                    azureSubscription: '$(azureSubscription)'
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      az aks get-credentials --resource-group $(resourceGroup) --name $(clusterName)
+                - task: Kubernetes@1
+                  displayName: 'Deploy to AKS'
+                  inputs:
+                    connectionType: 'Azure Resource Manager'
+                    azureSubscriptionEndpoint: '$(azureSubscription)'
+                    azureResourceGroup: '$(resourceGroup)'
+                    kubernetesCluster: '$(clusterName)'
+                    namespace: 'default'
+                    command: 'apply'
+                    useKustomize: true
+                    kustomizationPath: 'k8s/'
+                {% elif runtime == "container_apps" %}
+                - task: AzureCLI@2
+                  displayName: 'Deploy to ACA'
+                  inputs:
+                    azureSubscription: '$(azureSubscription)'
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      az containerapp up \
+                        --name {{ project_name }} \
+                        --resource-group $(resourceGroup) \
+                        --location $(location) \
+                        --image {{ project_name | default("agent") }}:$(Build.BuildId)
+                {% elif runtime == "app_service" %}
+                - task: AzureWebAppContainer@1
+                  displayName: 'Deploy to Web App'
+                  inputs:
+                    azureSubscription: '$(azureSubscription)'
+                    appName: '{{ project_name }}'
+                    containers: '{{ project_name | default("agent") }}:$(Build.BuildId)'
+                {% else %}
+                - script: echo "Deploying to {{ runtime }} in dev environment"
+                  displayName: 'Deploy to {{ runtime }}'
+                {% endif %}
