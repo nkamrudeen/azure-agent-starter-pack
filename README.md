@@ -12,14 +12,27 @@ CLI to scaffold production-ready Azure AI Agent projects with configurable frame
 | **Pipeline** | `github_actions`, `azure_devops` |
 | **IaC** | `terraform`, `bicep` |
 
+## Installation
+
+Install the CLI using `uv` or `pip`:
+
+```bash
+# Recommended: install as a global tool with uv
+uv tool install azure-agent-starter-pack
+
+# Or via pip
+pip install azure-agent-starter-pack
+```
+
 ## Install (development)
 
 ```bash
-git clone <repo-url> && cd azure-agent-starter-pack
+git clone https://github.com/nkamrudeen/azure-agent-starter-pack.git
+cd azure-agent-starter-pack
 uv sync
 ```
 
-Or install as a global tool (editable, so changes take effect immediately):
+Or install as a global tool from the local source (editable):
 
 ```bash
 uv tool install --from . --editable azure-agent-starter-pack
@@ -499,3 +512,13 @@ src/azure_agent_starter_pack/templates/
 ```
 
 Rendering order: `_common/` → `<framework>/<project_type>/` → `iac/<iac>/` → `runtimes/<runtime>/` → `pipelines/<pipeline>/`
+
+---
+
+## Contributing
+
+Contributions are welcome! Please see our [Contributing Guide](CONTRIBUTING.md) for more details.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

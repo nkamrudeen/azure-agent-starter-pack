@@ -3,6 +3,16 @@ name = "azure-agent-starter-pack"
 version = "0.1.0"
 description = "CLI to scaffold Azure AI Agent projects with configurable options"
 readme = "README.md"
+license = { text = "MIT" }
+keywords = ["azure", "ai", "agents", "scaffold", "cli", "rag"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Code Generators",
+]
 requires-python = ">=3.12"
 dependencies = [
     "typer>=0.12.0",
@@ -10,6 +20,10 @@ dependencies = [
     "jinja2>=3.1.0",
     "rich>=13.0.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/nkamrudeen/azure-agent-starter-pack"
+Issues = "https://github.com/nkamrudeen/azure-agent-starter-pack/issues"
 
 [project.scripts]
 azure-agent-starter-pack = "azure_agent_starter_pack.cli.app:app"
