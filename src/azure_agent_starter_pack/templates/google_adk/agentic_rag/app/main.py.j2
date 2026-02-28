@@ -7,9 +7,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
 
 load_dotenv()
+
+# Configure Azure OpenAI auth (API key or Managed Identity) before agent
+# modules are imported, since they call get_model() at module level.
+if os.getenv("AZURE_OPENAI_DEPLOYMENT"):
+    from app.azure_openai import setup_azure_openai
+
+    setup_azure_openai()
+
+from fastapi import FastAPI
 
 app = FastAPI(title="{{ project_name }} (Agentic RAG)", version="0.1.0")
 
@@ -36,11 +44,12 @@ async def run_agent(query: dict):
     from google.adk.sessions import InMemorySessionService
     from google.genai.types import Content, Part
 
+    from app.model_config import get_model
     from app.tools.retrieval_tool import retrieval_tool
 
     rag_agent = Agent(
         name="rag_agent",
-        model="gemini-2.0-flash",
+        model=get_model(),
         description="RAG agent grounded in Azure AI Search.",
         instruction=(
             "You are a knowledge assistant for {{ project_name }}. "

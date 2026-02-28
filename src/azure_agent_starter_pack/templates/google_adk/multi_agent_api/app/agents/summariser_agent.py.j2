@@ -2,9 +2,11 @@
 
 from google.adk.agents import Agent
 
+from app.model_config import get_model
+
 summariser_agent = Agent(
     name="summariser_agent",
-    model="gemini-2.0-flash",
+    model=get_model(),
     description="Summarises long content into concise, actionable summaries.",
     instruction=(
         "You are a summarisation specialist. Take the provided content and "

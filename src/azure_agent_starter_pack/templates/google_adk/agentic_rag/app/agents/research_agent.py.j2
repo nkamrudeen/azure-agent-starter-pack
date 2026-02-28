@@ -2,11 +2,12 @@
 
 from google.adk.agents import Agent
 
+from app.model_config import get_model
 from app.tools.search_tool import search_tool
 
 research_agent = Agent(
     name="research_agent",
-    model="gemini-2.0-flash",
+    model=get_model(),
     description="Researches topics by searching knowledge sources.",
     instruction=(
         "You are a research specialist. Use the search tool to find "

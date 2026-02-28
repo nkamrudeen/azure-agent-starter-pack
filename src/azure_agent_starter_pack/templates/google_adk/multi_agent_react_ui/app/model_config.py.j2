@@ -1,0 +1,21 @@
+"""Model configuration: Azure OpenAI via LiteLLM or Gemini."""
+
+import os
+
+
+def get_model():
+    """Return the configured model for Google ADK agents.
+
+    When AZURE_OPENAI_DEPLOYMENT is set, returns a LiteLlm wrapper that routes
+    requests to Azure OpenAI (requires ``setup_azure_openai()`` to have been
+    called first so that API key / Managed-Identity env vars are populated).
+
+    Otherwise falls back to a Gemini model string (GOOGLE_MODEL env var or
+    ``gemini-2.0-flash``).
+    """
+    deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+    if deployment:
+        from google.adk.models.lite_llm import LiteLlm
+
+        return LiteLlm(model=f"azure/{deployment}")
+    return os.getenv("GOOGLE_MODEL", "gemini-2.0-flash")

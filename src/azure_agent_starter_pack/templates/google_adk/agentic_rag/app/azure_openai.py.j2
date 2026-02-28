@@ -1,0 +1,87 @@
+"""Azure OpenAI authentication: API-key or Managed Identity via LiteLLM."""
+
+import logging
+import os
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+_API_KEY_MSG = (
+    "Set AZURE_API_KEY (or AZURE_OPENAI_API_KEY) and AZURE_API_BASE in your "
+    "Container App environment variables or secrets. Get the key from Azure Portal → "
+    "your OpenAI resource → Keys and Endpoint."
+)
+
+
+def setup_azure_openai() -> Optional[object]:
+    """
+    Configure environment for LiteLLM to use Azure OpenAI.
+
+    - If AZURE_API_KEY or AZURE_OPENAI_API_KEY is set: use API key auth
+      (e.g. on ACA without Managed Identity).
+    - If USE_MANAGED_IDENTITY=false: require API key; do not try
+      DefaultAzureCredential (use this on ACA without MI).
+    - Otherwise: use Managed Identity (DefaultAzureCredential) when running
+      in Azure with MI.
+    """
+    api_key = os.getenv("AZURE_API_KEY") or os.getenv("AZURE_OPENAI_API_KEY")
+    use_managed_identity = os.getenv("USE_MANAGED_IDENTITY", "").lower() not in (
+        "false",
+        "0",
+        "no",
+    )
+
+    if api_key:
+        os.environ["AZURE_API_KEY"] = api_key
+        os.environ["AZURE_OPENAI_API_KEY"] = api_key
+    elif not use_managed_identity:
+        raise RuntimeError(
+            "USE_MANAGED_IDENTITY is disabled and no API key was provided. "
+            + _API_KEY_MSG
+        )
+    else:
+        try:
+            from azure.identity import DefaultAzureCredential
+
+            mi_client_id = os.getenv("AZURE_MANAGED_IDENTITY_CLIENT_ID")
+            kwargs = (
+                {"managed_identity_client_id": mi_client_id} if mi_client_id else {}
+            )
+            credential = DefaultAzureCredential(**kwargs)
+            token = credential.get_token(
+                "https://cognitiveservices.azure.com/.default"
+            )
+            os.environ["AZURE_API_KEY"] = token.token
+            os.environ["AZURE_OPENAI_API_KEY"] = token.token
+        except Exception as e:
+            logger.exception(
+                "Azure OpenAI Managed Identity / DefaultAzureCredential failed: %s", e
+            )
+            raise RuntimeError(
+                "Azure OpenAI auth failed (no API key, Managed Identity not available). "
+                "For User-Assigned MI on ACA, set AZURE_MANAGED_IDENTITY_CLIENT_ID to "
+                "the identity client ID. " + _API_KEY_MSG
+            ) from e
+
+    base = os.getenv("AZURE_OPENAI_ENDPOINT") or os.getenv("AZURE_API_BASE")
+    if base:
+        os.environ["AZURE_API_BASE"] = base
+    os.environ.setdefault("AZURE_API_VERSION", "2024-02-15-preview")
+
+    return None
+
+
+def refresh_token(credential: object) -> None:
+    """Refresh Azure AD token (Managed Identity only; call periodically;
+    tokens expire ~1 hour)."""
+    try:
+        from azure.identity import DefaultAzureCredential
+
+        if isinstance(credential, DefaultAzureCredential):
+            token = credential.get_token(
+                "https://cognitiveservices.azure.com/.default"
+            )
+            os.environ["AZURE_API_KEY"] = token.token
+            os.environ["AZURE_OPENAI_API_KEY"] = token.token
+    except Exception:
+        pass

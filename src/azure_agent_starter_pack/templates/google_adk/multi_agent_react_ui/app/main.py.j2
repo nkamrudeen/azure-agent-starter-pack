@@ -8,13 +8,21 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotenv import load_dotenv
+
+load_dotenv()
+
+# Configure Azure OpenAI auth (API key or Managed Identity) before agent
+# modules are imported, since they call get_model() at module level.
+if os.getenv("AZURE_OPENAI_DEPLOYMENT"):
+    from app.azure_openai import setup_azure_openai
+
+    setup_azure_openai()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.agents.root_agent import root_agent
-
-load_dotenv()
 
 app = FastAPI(title="{{ project_name }}", version="0.1.0")
 
